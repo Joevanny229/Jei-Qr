@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EventScan Pro - Scanner de Tickets</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 2rem;
+        }
+
+        .scanner-section {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .scanner-container {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border: 2px dashed #dee2e6;
+        }
+
+        #reader {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+        }
+
+        .result-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin: 2rem 0;
+            overflow: hidden;
+            transform: translateY(20px);
+            opacity: 0;
+            transition: all 0.5s ease;
+            position: relative;
+        }
+
+        .result-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .result-container.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .ticket-info {
+            padding: 2rem;
+        }
+
+        .ticket-info h3 {
+            color: #333;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #666;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .detail-value {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .vip-badge {
+            background: linear-gradient(135deg, #ffc107, #ff9800);
+            color: #fff;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            margin-left: 0.5rem;
+            text-transform: uppercase;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .vip-ticket .ticket-info h3 {
+            color: #ff9800;
+        }
+
+        .vip-ticket::before {
+            background: linear-gradient(90deg, #ffc107, #ff9800) !important;
+        }
+
+        .actions {
+            padding: 1.5rem 2rem;
+            background: #f8f9fa;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
+        .generator-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        #qrCodeDisplay {
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .status-message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 1rem;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .tab.active {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 0;
+                border-radius: 0;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .main-content {
+                padding: 1rem;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-qrcode"></i> EventScan Pro</h1>
+            <p>Scanner de tickets professionnel pour événements</p>
+        </div>
+
+        <div class="main-content">
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('scanner')">
+                    <i class="fas fa-camera"></i> Scanner
+                </div>
+                <div class="tab" onclick="switchTab('generator')">
+                    <i class="fas fa-plus"></i> Générateur
+                </div>
+                <div class="tab" onclick="switchTab('stats')">
+                    <i class="fas fa-chart-bar"></i> Statistiques
+                </div>
+            </div>
+
+            <!-- Scanner Tab -->
+            <div id="scanner-tab" class="tab-content active">
+                <div class="scanner-section">
+                    <h2><i class="fas fa-camera"></i> Scanner de QR Code</h2>
+                    <p>Pointez la caméra vers le QR code du ticket</p>
+                    
+                    <div class="scanner-container">
+                        <div id="reader"></div>
+                    </div>
+                    
+                    <button id="startScanBtn" class="btn" onclick="startScanner()">
+                        <i class="fas fa-play"></i> Démarrer le scanner
+                    </button>
+                    <button id="stopScanBtn" class="btn btn-danger hidden" onclick="stopScanner()">
+                        <i class="fas fa-stop"></i> Arrêter le scanner
+                    </button>
+                </div>
+
+                <div id="resultContainer" class="result-container">
+                    <div class="ticket-info">
+                        <h3><i class="fas fa-ticket-alt"></i> Informations du ticket</h3>
+                        <div id="ticketDetails"></div>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-success" onclick="validateEntry()">
+                            <i class="fas fa-check"></i> Valider l'entrée
+                        </button>
+                        <button class="btn btn-danger" onclick="rejectEntry()">
+                            <i class="fas fa-times"></i> Refuser l'entrée
+                        </button>
+                        <button class="btn btn-secondary" onclick="scanAnother()">
+                            <i class="fas fa-redo"></i> Scanner un autre
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generator Tab -->
+            <div id="generator-tab" class="tab-content">
+                <div class="generator-section">
+                    <h2><i class="fas fa-plus"></i> Générateur de tickets</h2>
+                    <p>Créez des QR codes pour vos tickets d'événement</p>
+                    
+                    <form id="ticketForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="eventName">Nom de l'événement</label>
+                                <input type="text" id="eventName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="attendeeName">Nom du participant</label>
+                                <input type="text" id="attendeeName" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="ticketType">Type de ticket</label>
+                                <select id="ticketType" required>
+                                    <option value="Standard">Standard</option>
+                                    <option value="VIP">VIP</option>
+                                    <option value="Premium">Premium</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="seatNumber">Numéro de siège</label>
+                                <input type="text" id="seatNumber" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="eventDate">Date de l'événement</label>
+                                <input type="date" id="eventDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="eventTime">Heure</label>
+                                <input type="time" id="eventTime" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="venue">Lieu</label>
+                                <input type="text" id="venue" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="price">Prix</label>
+                                <input type="text" id="price" placeholder="ex: 45.00€" required>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn">
+                            <i class="fas fa-qrcode"></i> Générer le QR Code
+                        </button>
+                    </form>
+                    
+                    <div id="qrCodeDisplay" class="hidden">
+                        <h3>QR Code généré</h3>
+                        <canvas id="qrCanvas"></canvas>
+                        <br>
+                        <button class="btn btn-secondary" onclick="downloadQR()">
+                            <i class="fas fa-download"></i> Télécharger
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Tab -->
+            <div id="stats-tab" class="tab-content">
+                <h2><i class="fas fa-chart-bar"></i> Statistiques</h2>
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalScanned">0</div>
+                        <div class="stat-label">Tickets scannés</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="validatedCount">0</div>
+                        <div class="stat-label">Entrées validées</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="rejectedCount">0</div>
+                        <div class="stat-label">Entrées refusées</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="vipCount">0</div>
+                        <div class="stat-label">Tickets VIP</div>
+                    </div>
+                </div>
+                
+                <button class="btn btn-secondary" onclick="resetStats()">
+                    <i class="fas fa-refresh"></i> Réinitialiser les statistiques
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let html5QrcodeScanner = null;
+        let isScanning = false;
+        let stats = {
+            totalScanned: 0,
+            validatedCount: 0,
+            rejectedCount: 0,
+            vipCount: 0
+        };
+
+        // Charger les statistiques depuis le localStorage
+        function loadStats() {
+            const savedStats = localStorage.getItem('eventScanStats');
+            if (savedStats) {
+                stats = JSON.parse(savedStats);
+                updateStatsDisplay();
+            }
+        }
+
+        // Sauvegarder les statistiques dans le localStorage
+        function saveStats() {
+            localStorage.setItem('eventScanStats', JSON.stringify(stats));
+            updateStatsDisplay();
+        }
+
+        // Mettre à jour l'affichage des statistiques
+        function updateStatsDisplay() {
+            document.getElementById('totalScanned').textContent = stats.totalScanned;
+            document.getElementById('validatedCount').textContent = stats.validatedCount;
+            document.getElementById('rejectedCount').textContent = stats.rejectedCount;
+            document.getElementById('vipCount').textContent = stats.vipCount;
+        }
+
+        // Initialiser le scanner
+        function initializeScanner() {
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0
+            };
+
+            html5QrcodeScanner = new Html5QrcodeScanner("reader", config, false);
+            html5QrcodeScanner.render(onScanSuccess, onScanError);
+        }
+
+        // Fonction appelée lors d'un scan réussi
+        function onScanSuccess(decodedText, decodedResult) {
+            console.log(`Code scanné: ${decodedText}`, decodedResult);
+            
+            // Parser les données du ticket
+            const ticketData = parseTicketData(decodedText);
+            
+            // Mettre à jour les statistiques
+            stats.totalScanned++;
+            if (ticketData.isVip) {
+                stats.vipCount++;
+            }
+            saveStats();
+            
+            // Afficher les informations du ticket
+            displayTicketInfo(ticketData);
+            
+            // Arrêter le scanner temporairement
+            stopScanner();
+        }
+
+        // Fonction appelée en cas d'erreur de scan
+        function onScanError(error) {
+            // Ignorer les erreurs de scan normales
+            console.warn(`Erreur de scan: ${error}`);
+        }
+
+        // Démarrer le scanner
+        function startScanner() {
+            if (!isScanning) {
+                initializeScanner();
+                isScanning = true;
+                document.getElementById('startScanBtn').classList.add('hidden');
+                document.getElementById('stopScanBtn').classList.remove('hidden');
+            }
+        }
+
+        // Arrêter le scanner
+        function stopScanner() {
+            if (html5QrcodeScanner && isScanning) {
+                html5QrcodeScanner.clear();
+                isScanning = false;
+                document.getElementById('startScanBtn').classList.remove('hidden');
+                document.getElementById('stopScanBtn').classList.add('hidden');
+            }
+        }
+
+        // Parser les données du ticket - MODIFIÉ pour détecter les VIP
+        function parseTicketData(qrData) {
+            try {
+                // Essayer de parser comme JSON
+                const data = JSON.parse(qrData);
+                
+                // Détection du type de ticket
+                const isVip = qrData.toLowerCase().includes('vip') || 
+                             (data.ticketType && data.ticketType.toLowerCase().includes('vip'));
+                
+                // Ajout de la propriété isVip
+                data.isVip = isVip;
+                
+                // Si c'est un VIP et que le type n'est pas spécifié, on l'ajoute
+                if (isVip && !data.ticketType) {
+                    data.ticketType = 'VIP';
+                }
+                
+                return data;
+            } catch (e) {
+                // Si ce n'est pas du JSON, créer un objet avec les données de base
+                const isVip = qrData.toLowerCase().includes('vip');
+                
+                return {
+                    ticketId: qrData.substring(0, 12) || 'TKT-' + Date.now(),
+                    eventName: 'Événement Spécial',
+                    attendeeName: 'Participant',
+                    ticketType: isVip ? 'VIP' : 'Standard',
+                    seatNumber: isVip ? 'VIP Zone' : 'Libre',
+                    eventDate: new Date().toLocaleDateString('fr-FR'),
+                    eventTime: '20:00',
+                    venue: 'Salle de Concert',
+                    price: isVip ? '120.00€' : '45.00€',
+                    status: 'Valide',
+                    isVip: isVip,
+                    rawData: qrData
+                };
+            }
+        }
+
+        // Afficher les informations du ticket - MODIFIÉ pour gérer les VIP
+        function displayTicketInfo(ticketData) {
+            const ticketDetails = document.getElementById('ticketDetails');
+            const resultContainer = document.getElementById('resultContainer');
+            
+            // Ajout de la classe VIP si nécessaire
+            if (ticketData.isVip) {
+                resultContainer.classList.add('vip-ticket');
+            } else {
+                resultContainer.classList.remove('vip-ticket');
+            }
+            
+            // Création du badge VIP si nécessaire
+            const vipBadge = ticketData.isVip 
+                ? '<span class="vip-badge"><i class="fas fa-crown"></i> VIP</span>' 
+                : '';
+            
+            ticketDetails.innerHTML = `
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-hashtag"></i> ID Ticket</span>
+                    <span class="detail-value">${ticketData.ticketId} ${vipBadge}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-calendar-alt"></i> Événement</span>
+                    <span class="detail-value">${ticketData.eventName}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-user"></i> Participant</span>
+                    <span class="detail-value">${ticketData.attendeeName}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-tag"></i> Type</span>
+                    <span class="detail-value">${ticketData.ticketType}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-chair"></i> Siège</span>
+                    <span class="detail-value">${ticketData.seatNumber}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-calendar"></i> Date</span>
+                    <span class="detail-value">${ticketData.eventDate}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-clock"></i> Heure</span>
+                    <span class="detail-value">${ticketData.eventTime}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-map-marker-alt"></i> Lieu</span>
+                    <span class="detail-value">${ticketData.venue}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-euro-sign"></i> Prix</span>
+                    <span class="detail-value">${ticketData.price}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-check-circle"></i> Statut</span>
+                    <span class="detail-value" style="color: #28a745; font-weight: bold;">${ticketData.status}</span>
+                </div>
+            `;
+            
+            resultContainer.classList.add('show');
+            resultContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Valider l'entrée - MODIFIÉ pour message différent pour les VIP
+        function validateEntry() {
+            const isVip = document.getElementById('resultContainer').classList.contains('vip-ticket');
+            const message = isVip 
+                ? '✅ Accès VIP validé ! Veuillez accueillir le participant avec les privilèges VIP.' 
+                : '✅ Entrée standard validée ! Le participant peut accéder à l\'événement.';
+            
+            stats.validatedCount++;
+            saveStats();
+            
+            showStatusMessage(message, 'success');
+            setTimeout(() => scanAnother(), 2000);
+        }
+
+        // Refuser l'entrée
+        function rejectEntry() {
+            stats.rejectedCount++;
+            saveStats();
+            
+            showStatusMessage('❌ Entrée refusée. Ticket non valide ou expiré.', 'error');
+            setTimeout(() => scanAnother(), 2000);
+        }
+
+        // Scanner un autre ticket
+        function scanAnother() {
+            document.getElementById('resultContainer').classList.remove('show');
+            setTimeout(() => {
+                startScanner();
+            }, 500);
+        }
+
+        // Afficher un message de statut
+        function showStatusMessage(message, type) {
+            const existingMessage = document.querySelector('.status-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `status-message status-${type}`;
+            messageDiv.textContent = message;
+            
+            const resultContainer = document.getElementById('resultContainer');
+            resultContainer.parentNode.insertBefore(messageDiv, resultContainer.nextSibling);
+            
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 3000);
+        }
+
+        // Gestion des onglets
+        function switchTab(tabName) {
+            // Masquer tous les contenus d'onglets
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Désactiver tous les onglets
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Activer l'onglet sélectionné
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            event.target.classList.add('active');
+            
+            // Arrêter le scanner si on change d'onglet
+            if (tabName !== 'scanner' && isScanning) {
+                stopScanner();
+            }
+        }
+
+        // Générateur de QR Code
+        function generateQRCode(data) {
+            const canvas = document.getElementById('qrCanvas');
+            QRCode.toCanvas(canvas, JSON.stringify(data), {
+                width: 300,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }, function (error) {
+                if (error) {
+                    console.error('Erreur lors de la génération du QR code:', error);
+                    showStatusMessage('Erreur lors de la génération du QR code', 'error');
+                } else {
+                    console.log('QR code généré avec succès');
+                    document.getElementById('qrCodeDisplay').classList.remove('hidden');
+                }
+            });
+        }
+
+        // Télécharger le QR code
+        function downloadQR() {
+            const canvas = document.getElementById('qrCanvas');
+            const link = document.createElement('a');
+            link.download = 'ticket-qr-code.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        // Réinitialiser les statistiques
+        function resetStats() {
+            if (confirm('Êtes-vous sûr de vouloir réinitialiser toutes les statistiques ?')) {
+                stats = {
+                    totalScanned: 0,
+                    validatedCount: 0,
+                    rejectedCount: 0,
+                    vipCount: 0
+                };
+                saveStats();
+                showStatusMessage('Statistiques réinitialisées', 'success');
+            }
+        }
+
+        // Gestion du formulaire de génération de tickets
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStats();
+            
+            // Définir la date par défaut à aujourd'hui
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('eventDate').value = today;
+            document.getElementById('eventTime').value = '20:00';
+            
+            // Gestion du formulaire
+            document.getElementById('ticketForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(e.target);
+                const ticketData = {
+                    ticketId: 'TKT-' + Date.now(),
+                    eventName: formData.get('eventName') || document.getElementById('eventName').value,
+                    attendeeName: formData.get('attendeeName') || document.getElementById('attendeeName').value,
+                    ticketType: formData.get('ticketType') || document.getElementById('ticketType').value,
+                    seatNumber: formData.get('seatNumber') || document.getElementById('seatNumber').value,
+                    eventDate: formData.get('eventDate') || document.getElementById('eventDate').value,
+                    eventTime: formData.get('eventTime') || document.getElementById('eventTime').value,
+                    venue: formData.get('venue') || document.getElementById('venue').value,
+                    price: formData.get('price') || document.getElementById('price').value,
+                    status: 'Valide',
+                    isVip: (formData.get('ticketType') || document.getElementById('ticketType').value).toLowerCase().includes('vip')
+                };
+                
+                generateQRCode(ticketData);
+                showStatusMessage('QR Code généré avec succès !', 'success');
+            });
+        });
+    </script>
+</body>
+</html>
+
